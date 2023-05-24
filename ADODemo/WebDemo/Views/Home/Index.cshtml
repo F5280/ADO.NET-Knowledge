@@ -1,0 +1,37 @@
+﻿@using System.Data
+@model System.Data.DataTable
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+
+    <table border="1" class="table table-hover">
+        <thead>
+            <tr>
+                <td>学号</td>
+                <td>姓名</td>
+                <td>班级</td>
+                <td>电话</td>
+                <td>性别</td>
+                <td>出生日期</td>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (DataRow item in Model.Rows)
+            {
+                <tr>
+                    <td>@item["stuId"]</td>
+                    <td>@item["stuName"]</td>
+                    <td>@item["classId"]</td>
+                    <td>@item["stuPhone"]</td>
+                    <td>@item["stuSex"]</td>
+                    <td>@item["stuBirthday"]</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

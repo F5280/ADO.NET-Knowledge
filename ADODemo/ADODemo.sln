@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33205.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ADODemo", "ADODemo\ADODemo.csproj", "{1E3D495D-A4DD-4878-8219-B4A40E2CC937}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebDemo", "WebDemo\WebDemo.csproj", "{6B2A3DFE-0952-451E-B9A1-B045ED19A270}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1E3D495D-A4DD-4878-8219-B4A40E2CC937}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E3D495D-A4DD-4878-8219-B4A40E2CC937}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E3D495D-A4DD-4878-8219-B4A40E2CC937}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E3D495D-A4DD-4878-8219-B4A40E2CC937}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B2A3DFE-0952-451E-B9A1-B045ED19A270}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B2A3DFE-0952-451E-B9A1-B045ED19A270}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B2A3DFE-0952-451E-B9A1-B045ED19A270}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B2A3DFE-0952-451E-B9A1-B045ED19A270}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {233C1CD8-6C82-45FD-A459-470F82A636A3}
+	EndGlobalSection
+EndGlobal

@@ -952,3 +952,283 @@ using (SqlConnection conn = new SqlConnection(connStr))
 
 ## 9. 在 Web 中使用 ADO
 
+首先需要新建一个 Asp.net core web 项目
+
+在 `Asp.net core Web` 项目中的 `appsetting.json` 文件中进行配置
+
+```json
+// appsetting.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "SqlStudent" : "server=localhost;uid=sa;pwd=0825;database=Student;timeout=30;pooling=true;"
+  }
+}
+```
+
+### 9.1 IConfiguration 接口
+
++ 命名空间 `Microsoft.Extensions.Configuration` 
++ 程序集 `Microsoft.Extensions.Configuration.Abstractions.dll` 
+
+在 `.net web` 项目中，`IConfiguration` 接口在项目启动中就被注册到 `IOC` 容器中，因此只需要在用到的地方注入，即可拿到对象
+
+### 9.2 读取连接字符串
+
+```csharp
+// 在 xxController 控制器中读取连接字符
+
+// 注入配置对象（系统在启动时，已在 IOC 容器中注册）
+// 只读字段，用于读取配置文件
+private readonly IConfiguration _configuration;
+
+// 只读字段，用于存储连接数据库的字符，减少代码的冗余
+private readonly string _connectionString;
+
+// xxController 的构造方法
+public HomeController(ILogger<HomeController> logger, IConfiguration configuration)
+{
+	_logger = logger;
+	_configuration = configuration;
+	_connectionString = _configuration.GetConnectionString("SqlStudent");
+}
+```
+
+### 9.3 操作数据
+
+```c#
+// 在 XXController 控制器中连接数据库
+public IActionResult Index()
+{
+    // 连接数据库
+	using SqlConnection conn = new SqlConnection(_connectionString);
+	string sql = "Select * from StudentInfo";	// T-SQL语句
+	SqlDataAdapter adapter = new(sql,conn);	// 用SqlDataAdapter 适配器获取数据库数据
+	DataTable table = new DataTable();	// 实例化 DataTable 对象，用于存储读取到的数据
+	adapter.Fill(table);	// 将数据填充 DataTable 对象
+
+	return View(table);	// 向前端返回数据
+}
+```
+
+```asp
+@* 在 xx.cshtml 页面，与上面的控制器对应的页面 *@
+
+@using System.Data
+@model System.Data.DataTable
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+
+    <table border="1" class="table table-hover">
+        <thead>
+            <tr>
+                <td>学号</td>
+                <td>姓名</td>
+                <td>班级</td>
+                <td>电话</td>
+                <td>性别</td>
+                <td>出生日期</td>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (DataRow item in Model.Rows)	@* 将数据循环取出 *@
+            {
+                <tr>
+                    <td>@item["stuId"]</td>
+                    <td>@item["stuName"]</td>
+                    <td>@item["classId"]</td>
+                    <td>@item["stuPhone"]</td>
+                    <td>@item["stuSex"]</td>
+                    <td>@item["stuBirthday"]</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+```
+
+## 10. 封装 DbHelper
+
+在上述的案例中，每次操作数据库都产生了许多重复的代码，出现了代码冗余的现象。
+
+总结上诉案例的操作可分为三类
+
++ 读取
++ 写入
++ 计数
+
+因此可将这三类封装为三个方法，将 `sql` 语句与字段参数当作方法参数传入，达到重用作用
+
+```csharp
+// 这是在 web 项目中新建一个类进行实现
+
+using System.Data;
+using System.Data.SqlClient;
+
+namespace WebDemo
+{
+    /// <summary>
+    /// 一个静态的工具类
+    /// 用于执行 T-SQL 语句，减少代码的冗余
+    /// </summary>
+    public static class DbHelper
+    {
+        private static string _connectionStr;
+        
+        //静态构造方法
+        //只会在第一次访问该类的时候执行一次静态构造
+        static DbHelper()
+        {
+            ConfigurationBuilder configuration = new ConfigurationBuilder();
+            //读取配置文件
+            IConfigurationRoot config = configuration
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile(file =>
+            {
+                file.Path = "/appsetting.json";
+                file.Optional = false;
+                file.ReloadOnChange = true;
+            }).Build();
+            _connectionStr = config.GetConnectionString("SqlStudent");
+        }
+        
+        /// <summary>
+        /// 私有化一个连接数据库方法
+        /// </summary>
+        /// <returns>返回一个实例化的连接对象</returns>
+        private static SqlConnection ConnectionAndOpen()
+        {
+            SqlConnection conn = new SqlConnection(_connectionStr);
+
+            // 确保打开连接
+            if (conn.State == ConnectionState.Broken)
+            {
+                conn.Close();
+                conn.Open();
+            }
+            if (conn.State == ConnectionState.Closed)
+            {
+                conn.Open();
+            }
+
+            return conn;
+        }
+        
+        /// <summary>
+        /// 私有化一个操作数据库命令的方法
+        /// </summary>
+        /// <param name="tSql">待执行的 T-SQL 语句</param>
+        /// <param name="parameters">需要用到的参数</param>
+        /// <returns>执行的命令对象</returns>
+        private static SqlCommand OperateCommand(string tSql, params SqlParameter[]? parameters)
+        {
+            // 实例化 命令对象
+            SqlCommand cmd = new SqlCommand(tSql, ConnectionAndOpen());
+
+            // 对参数的判空操作，当没有参数时不用传递参数
+            if (parameters != null && parameters.Length > 0)
+            {
+                cmd.Parameters.AddRange(parameters);
+            }
+
+            return cmd;
+        }
+        
+        /// <summary>
+        /// 通常用于执行 增、删、改 操作
+        /// </summary>
+        /// <param name="tSql">待执行的 T-SQL 命令</param>
+        /// <param name="parameters">需要传入的SQL参数</param>
+        /// <returns>返回受影响的行数</returns>
+        public static int ExecuteNonQuery(string tSql, params SqlParameter[]? parameters)
+        {
+            SqlConnection conn = ConnectionAndOpen();
+			conn.Open();	// 天王老子来了都不给关上！！！
+            try
+            {
+
+                using SqlCommand command = OperateCommand(tSql, parameters);
+                
+                return command.ExecuteNonQuery();
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);   // 打印错误
+                return -1;  //  返回非正常值
+            }
+            finally // 无论查询结果如何，都关闭连接，减少资源消耗
+            { 
+                conn.Close();   //
+                if (DbHelper.ConnectionAndOpen().State == ConnectionState.Closed)
+                {
+                    Debug.WriteLine("数据库连接已关闭");
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 获取 T-SQL 语句执行后的首行首列的信息
+        /// </summary>
+        /// <param name="tSql">待执行的 T-SQL 命令</param>
+        /// <param name="parameters">需要传入的SQL参数</param>
+        /// <returns>首行首列的数据</returns>
+        public static int ExecuteScalar(string tSql, params SqlParameter[] parameters)
+        {
+            SqlConnection conn = ConnectionAndOpen();
+
+            try
+            {
+
+                using SqlCommand command = OperateCommand(tSql, parameters);
+
+                return Convert.ToInt32(command.ExecuteScalar());
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);   // 打印错误
+                return -1;  //  返回非正常值
+            }
+            finally // 无论查询结果如何，都关闭连接，减少资源消耗
+            {
+                conn.Close();   //
+                if (DbHelper.ConnectionAndOpen().State == ConnectionState.Closed)
+                {
+                    Debug.WriteLine("数据库连接已关闭");
+                }
+            }
+        }
+    }
+}
+
+```
+
+☆：封装好了，但是没有完全封装好！
+
+☆：还有事务、存储过程等可以完善的地方
+
+
+
+# End
+
+总算完结了 `ADO.NET` 的知识。本篇文档描述的案例都是在 `Visual Studio 2022` 的编辑器实现。文档中仅仅实现了 `Sql Server` 数据库的连接，或许后续会更新 `MySql` 等其他数据库的连接操作，内容都是大同小异
+
+看到这里，如果觉得这篇文档笔记对你有帮助的话，麻烦您动一下爪子点个星，让更多的人能够留意到这篇笔记
+
+如果条件可以的话，还可以扫下方二维码对我进行支持
+
+<img src="./Images/zhifubao.jpg" alt="支付宝" style="zoom:45%;" /> <img src="./Images/wechat.jpg" alt="微信" style="zoom:40%;" />
+
+
+
